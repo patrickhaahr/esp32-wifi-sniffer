@@ -3,3 +3,7 @@
 /target
 /Cargo.lock
 .env
+
+claude.md
+.claude/
+logs/

@@ -1,3 +1,7 @@
+[alias]
+br = "build --release"
+fr = ["run", "--release"]  # build + flash + monitor
+
 [build]
 target = "xtensa-esp32-espidf"
 
