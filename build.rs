@@ -1,8 +1,17 @@
 fn main() {
-    // Load .env file if it exists (for local development)
-    // This allows env!() macro to access WIFI_SSID and WIFI_PASS at compile time
-    if let Err(_) = dotenvy::dotenv() {
-        println!("cargo:warning=No .env file found, using environment variables");
+    // Always look for .env next to Cargo.toml so builds work even when run from elsewhere
+    let manifest_dir =
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set by cargo");
+    let env_path = std::path::Path::new(&manifest_dir).join(".env");
+    println!("cargo:rerun-if-changed={}", env_path.display());
+
+    // Load .env file if it exists (for local development) so env!() can read WIFI_* at compile time
+    if let Err(err) = dotenvy::from_path(&env_path) {
+        println!(
+            "cargo:warning=No .env file found at {}, using environment variables ({})",
+            env_path.display(),
+            err
+        );
     }
 
     // Re-export environment variables to make them available to env!() macro
