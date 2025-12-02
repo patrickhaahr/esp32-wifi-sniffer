@@ -1,5 +1,4 @@
 fn main() {
-<<<<<<< HEAD
     // Always look for .env next to Cargo.toml so builds work even when run from elsewhere
     let manifest_dir =
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set by cargo");
@@ -13,12 +12,6 @@ fn main() {
             env_path.display(),
             err
         );
-=======
-    // Load .env file if it exists (for local development)
-    // This allows env!() macro to access environment variables at compile time
-    if let Err(_) = dotenvy::dotenv() {
-        println!("cargo:warning=No .env file found, using environment variables");
->>>>>>> 9bf2c24 (feat: enhance MQTT and WiFi integration)
     }
 
     // Re-export environment variables to make them available to env!() macro
