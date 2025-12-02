@@ -1,0 +1,35 @@
+[server]
+host = "0.0.0.0"
+port = 3000
+
+[mqtt]
+broker = "mqtt://192.168.0.148:1883"
+topic = "sniffer/+/device"
+
+[room]
+width = 5.0
+height = 9.0
+
+# ESP32 sniffer positions (in meters)
+# Adjust these coordinates to match your actual setup
+[[stations]]
+id = "1"
+x = 0.5
+y = 0.5
+label = "Station 1"
+
+[[stations]]
+id = "2"
+x = 4.5
+y = 0.5
+label = "Station 2"
+
+[[stations]]
+id = "3"
+x = 2.5
+y = 8.5
+label = "Station 3"
+
+[display]
+device_timeout = 30  # seconds before removing device from display
+fade_after = 5       # seconds before starting to fade device marker

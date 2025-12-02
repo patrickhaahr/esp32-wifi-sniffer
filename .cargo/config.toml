@@ -1,6 +1,7 @@
 [alias]
 br = "build --release"
 fr = ["run", "--release"]  # build + flash + monitor
+web = ["run", "--bin", "web-gui", "--features", "web-gui", "--target", "x86_64-unknown-linux-gnu", "--no-default-features", "--release"]
 
 [build]
 target = "xtensa-esp32-espidf"

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Position Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #4CAF50;
+        }
+
+        .status-bar {
+            background: #2a2a2a;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-indicator.connected {
+            background: #4CAF50;
+            box-shadow: 0 0 10px #4CAF50;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 20px;
+        }
+
+        .canvas-container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+
+        canvas {
+            border: 2px solid #444;
+            background: #1a1a1a;
+            display: block;
+        }
+
+        .devices-panel {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-y: auto;
+            max-height: 940px;
+        }
+
+        .devices-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+
+        .device-card {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .device-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .device-time {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .device-readings {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .reading {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 4px 0;
+            border-top: 1px solid #333;
+        }
+
+        .reading-station {
+            color: #4CAF50;
+        }
+
+        .reading-rssi {
+            font-family: monospace;
+        }
+
+        .rssi-strong {
+            color: #4CAF50;
+        }
+
+        .rssi-medium {
+            color: #FFC107;
+        }
+
+        .rssi-weak {
+            color: #F44336;
+        }
+
+        .legend {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+        }
+
+        .legend-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #888;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .no-devices {
+            color: #888;
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WiFi Position Tracker</h1>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="wsStatus"></div>
+                <span id="wsStatusText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span>Devices: <strong id="deviceCount">0</strong></span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="canvas" width="500" height="900"></canvas>
+            </div>
+
+            <div class="devices-panel">
+                <h2>Active Devices</h2>
+                <div id="devicesList">
+                    <div class="no-devices">Waiting for device detections...</div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-title">LEGEND</div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2196F3;"></div>
+                        <span>ESP32 Sniffer Stations</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #F44336;"></div>
+                        <span>Detected Devices</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const ROOM_WIDTH = 5.0;   // meters
+        const ROOM_HEIGHT = 9.0;  // meters
+        const CANVAS_WIDTH = 500; // pixels
+        const CANVAS_HEIGHT = 900; // pixels
+        const SCALE = CANVAS_WIDTH / ROOM_WIDTH; // 100px per meter
+
+        // Station positions (in meters) - loaded from config
+        const stations = {
+            '1': { x: 0.5, y: 0.5, label: 'Station 1' },
+            '2': { x: 4.5, y: 0.5, label: 'Station 2' },
+            '3': { x: 2.5, y: 8.5, label: 'Station 3' }
+        };
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // WebSocket connection
+        let ws = null;
+        let devices = new Map();
+        let reconnectTimer = null;
+
+        // Convert real-world coordinates to canvas pixels
+        function toCanvasX(x) {
+            return x * SCALE;
+        }
+
+        function toCanvasY(y) {
+            return y * SCALE;
+        }
+
+        // Get strongest RSSI station for a device
+        function getStrongestStation(deviceData) {
+            let strongest = null;
+            let maxRssi = -Infinity;
+
+            for (const [stationId, reading] of Object.entries(deviceData.readings)) {
+                if (reading.rssi > maxRssi) {
+                    maxRssi = reading.rssi;
+                    strongest = stationId;
+                }
+            }
+
+            return strongest;
+        }
+
+        // Draw the canvas
+        function drawCanvas() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Draw grid (every meter)
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= ROOM_WIDTH; i++) {
+                const x = toCanvasX(i);
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= ROOM_HEIGHT; i++) {
+                const y = toCanvasY(i);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+
+            // Draw room boundary
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Draw stations
+            for (const [stationId, station] of Object.entries(stations)) {
+                const x = toCanvasX(station.x);
+                const y = toCanvasY(station.y);
+
+                // Draw triangle
+                ctx.fillStyle = '#2196F3';
+                ctx.beginPath();
+                ctx.moveTo(x, y - 12);
+                ctx.lineTo(x - 10, y + 8);
+                ctx.lineTo(x + 10, y + 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw label
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = 'bold 12px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(stationId, x, y + 25);
+            }
+
+            // Draw devices
+            const now = Date.now() / 1000;
+            for (const [mac, deviceData] of devices.entries()) {
+                const age = now - deviceData.last_seen;
+                
+                // Calculate opacity based on age
+                let opacity = 1.0;
+                if (age > 5) {
+                    opacity = Math.max(0.2, 1.0 - (age - 5) / 10);
+                }
+
+                // Position at strongest signal station
+                const strongestStation = getStrongestStation(deviceData);
+                if (strongestStation && stations[strongestStation]) {
+                    const station = stations[strongestStation];
+                    const x = toCanvasX(station.x);
+                    const y = toCanvasY(station.y);
+
+                    // Add small random offset so devices don't overlap exactly
+                    const offsetX = (Math.random() - 0.5) * 30;
+                    const offsetY = (Math.random() - 0.5) * 30;
+
+                    // Draw device circle
+                    ctx.fillStyle = `rgba(244, 67, 54, ${opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(x + offsetX, y + offsetY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw MAC label
+                    const shortMac = mac.split(':').slice(-2).join(':');
+                    ctx.fillStyle = `rgba(224, 224, 224, ${opacity})`;
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(shortMac, x + offsetX, y + offsetY - 12);
+                }
+            }
+        }
+
+        // Update device list panel
+        function updateDevicesList() {
+            const devicesList = document.getElementById('devicesList');
+            const deviceCount = document.getElementById('deviceCount');
+
+            if (devices.size === 0) {
+                devicesList.innerHTML = '<div class="no-devices">Waiting for device detections...</div>';
+                deviceCount.textContent = '0';
+                return;
+            }
+
+            deviceCount.textContent = devices.size;
+
+            // Sort devices by last seen (most recent first)
+            const sortedDevices = Array.from(devices.values())
+                .sort((a, b) => b.last_seen - a.last_seen);
+
+            devicesList.innerHTML = sortedDevices.map(device => {
+                const now = Date.now() / 1000;
+                const age = Math.floor(now - device.last_seen);
+                const ageText = age < 1 ? 'just now' : `${age}s ago`;
+
+                // Get RSSI class for color coding
+                function getRssiClass(rssi) {
+                    if (rssi > -50) return 'rssi-strong';
+                    if (rssi > -70) return 'rssi-medium';
+                    return 'rssi-weak';
+                }
+
+                const readingsHtml = Object.entries(device.readings)
+                    .sort((a, b) => b[1].rssi - a[1].rssi)
+                    .map(([stationId, reading]) => `
+                        <div class="reading">
+                            <span class="reading-station">Station ${stationId}</span>
+                            <span class="reading-rssi ${getRssiClass(reading.rssi)}">${reading.rssi} dBm</span>
+                        </div>
+                    `).join('');
+
+                return `
+                    <div class="device-card">
+                        <div class="device-header">
+                            <span>${device.mac}</span>
+                            <span class="device-time">${ageText}</span>
+                        </div>
+                        <div class="device-readings">
+                            ${readingsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Connect to WebSocket
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('wsStatus').classList.add('connected');
+                document.getElementById('wsStatusText').textContent = 'Connected';
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const deviceList = JSON.parse(event.data);
+                    
+                    // Update devices map
+                    devices.clear();
+                    for (const device of deviceList) {
+                        devices.set(device.mac, device);
+                    }
+
+                    // Redraw
+                    drawCanvas();
+                    updateDevicesList();
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('wsStatus').classList.remove('connected');
+                document.getElementById('wsStatusText').textContent = 'Disconnected';
+                
+                // Attempt reconnect after 3 seconds
+                if (!reconnectTimer) {
+                    reconnectTimer = setTimeout(() => {
+                        console.log('Attempting to reconnect...');
+                        connect();
+                    }, 3000);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // Initial draw
+        drawCanvas();
+
+        // Connect to WebSocket
+        connect();
+
+        // Periodic redraw for fading effect
+        setInterval(() => {
+            drawCanvas();
+            updateDevicesList();
+        }, 1000);
+    </script>
+</body>
+</html>
