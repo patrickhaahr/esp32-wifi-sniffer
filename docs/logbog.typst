@@ -22,4 +22,9 @@ MQTT broker docker compose
 Logbog + arbeds-portfolio
 
 === Hans
+- Implementerede WiFi sniffer callback og MQTT publisher modul
+- Refaktorerede build.rs (fjernede ubrugt dotenv logik)
+- Implementerede triangulering til device positionering med web GUI integration
+- Optimerede SEND_RATE for hurtigere MQTT opdateringer
+- Udvidede triangulerings-modulet med gradient descent optimering og position smoothing
 
