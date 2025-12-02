@@ -82,6 +82,12 @@
             border-radius: 5px;
             overflow-y: auto;
             max-height: 940px;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .devices-panel::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
         }
 
         .devices-panel h2 {
