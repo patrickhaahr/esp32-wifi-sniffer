@@ -17,6 +17,8 @@ MQTT broker docker compose
 == 2. Dag (02-12-2025)
 
 === Andrei
+Logbog + arbeds-portfolio
+Fikse wifi connectivity problemer
 
 === Patrick
 Logbog + arbeds-portfolio
@@ -28,3 +30,7 @@ Logbog + arbeds-portfolio
 - Optimerede SEND_RATE for hurtigere MQTT opdateringer
 - Udvidede triangulerings-modulet med gradient descent optimering og position smoothing
 
+== 3. Dag (03-12-2025)
+
+=== Andrei
+Færdigør dokumentation og eftertjæke om vi overholder alle krav. 

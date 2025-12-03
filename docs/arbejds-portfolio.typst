@@ -54,3 +54,40 @@ Vi valgte i stedet en centraliseret arkitektur:
 - Afhængig af central server
 
 *Konklusion:* Den centraliserede løsning gav os hurtigere udvikling og bedre mulighed for at eksperimentere med trianguleringsalgoritmer. 
+== Produktmaal
+
+- Opstilling med flere ESP32 stationer placeret i hjornerne af bord/lokale
+- Hver station sniff er wifi i promiscuis mode og sender {id, timestamp, RSSI, (x,y)} til MQTT
+- Web backend (Rust) samler data, laver simpel triangulering og sender positioner videre via WebSocket
+- Browser GUI viser livedata for at kunne validere opstillingen
+
+== Proces og forsog
+
+- Logbog og portfolio opdateres løbende i stedet for en traditionel rapport
+- Startede med hurtige proof-of-concepts: wifi sniffing i promiscuis mode, MQTT publish fra ESP32, MQTT subscribe i Rust
+- Når en strategi gav brugbare data (RSSI stabilitet), blev den udvidet med ekstra noder for at teste triangulering
+
+== Triangulering og dataflow
+
+- Hver ESP32 møler RSSI mod mobile enheder og gemmer egen (x,y)
+- Data skubbes til lokal MQTT broker med et simpelt topic pr. station
+- Serveren oversætter RSSI til grov afstand og beregner krydspunkt ud fra flere stationer
+- Nøjagtighed forventes lav, men tilstrækkelig til at kende hvilket område enheden er i
+
+== Persondata og GDPR
+
+- MAC-adresser betragtes som personhenførlige; de hashes på ESP32 inden afsendelse
+- Ingen kobling til brugere eller andre metadata; kun tid, station-id og koordinat videregives
+- Data gemmes kortvarigt (kun det der behøves til live visning og simpel statistik) og slettes derefter
+- Adgang begrænses til lokal udviklings broker og webserver; ingen eksterne integrationer
+
+== Datasikkerhed
+
+- MQTT kører lokalt; til udvikling kan en test-broker bruges, men produktion holdes på det lukkede net
+- Trafik mellem ESP32 og broker kan sikres med simple pre-shared keys hvis støttet af klienten
+- Webserver validerer payloads (skema: id, timestamp, rssi, x, y) for at undgå skrammel-data
+
+== Videre arbejde
+
+- Finjustere RSSI til afstand-kurver pr. station for bedre estimering
+- Bygge et simpelt heatmap i browseren for at visualisere, hvor mange enheder der er i området over tid
