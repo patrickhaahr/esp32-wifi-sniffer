@@ -66,6 +66,31 @@ echo "=== Setting permissions ==="
 # Make certs readable by mosquitto docker container (runs as mosquitto user)
 chmod 644 server.key ca.key
 
+echo "=== Generating MQTT password file ==="
+# Go back to project root
+cd ..
+
+# Create mosquitto config directory if it doesn't exist
+mkdir -p mosquitto/config
+
+# Load MQTT credentials from .env file or use defaults
+if [ -f ".env" ]; then
+  export $(grep "^MQTT_USERNAME" .env | xargs 2>/dev/null || true)
+  export $(grep "^MQTT_PASSWORD" .env | xargs 2>/dev/null || true)
+fi
+
+# Default credentials if not set
+MQTT_USERNAME="${MQTT_USERNAME:-elev1}"
+MQTT_PASSWORD="${MQTT_PASSWORD:-password}"
+
+echo "Creating MQTT user: $MQTT_USERNAME"
+
+# Create password file (using -c to create new file, -b for password on command line)
+mosquitto_passwd -c -b mosquitto/config/passwd "$MQTT_USERNAME" "$MQTT_PASSWORD"
+
+# Set permissions for mosquitto container (secure permissions for password file)
+chmod 700 mosquitto/config/passwd
+
 echo ""
 echo "=== Certificate generation complete ==="
 echo "Files created in ./certs/:"
@@ -74,6 +99,9 @@ echo "  ca.key      - CA private key (keep secure, for signing new certs)"
 echo "  server.crt  - Server certificate (for MQTT broker and web server)"
 echo "  server.key  - Server private key (keep secure)"
 echo ""
+echo "Files created in ./mosquitto/config/:"
+echo "  passwd      - MQTT password file with user: $MQTT_USERNAME"
+echo ""
 echo "Certificate valid for:"
 echo "  - IP: $SERVER_IP"
 echo "  - IP: 127.0.0.1"
@@ -81,5 +109,6 @@ echo "  - DNS: localhost"
 echo ""
 echo "Next steps:"
 echo "  1. Copy ca.crt to ESP32 for client verification"
-echo "  2. Update docker-compose.yml to mount ./certs"
-echo "  3. Restart services"
+echo "  2. Update docker-compose.yml to mount ./certs and ./mosquitto/config"
+echo "  3. Update mosquitto.conf to use password file"
+echo "  4. Restart services"

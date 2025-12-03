@@ -5,9 +5,13 @@ use log::{error, info};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::time::Duration;
 
+/// MQTT topic prefix
+const MQTT_TOPIC_PREFIX: &str = "sniffer";
+
 /// MQTT broker configuration (mqtts://host:8883 for TLS)
 const MQTT_BROKER: &str = env!("MQTT_BROKER");
-const MQTT_TOPIC_PREFIX: &str = "sniffer";
+const MQTT_USERNAME: &str = env!("MQTT_USERNAME");
+const MQTT_PASSWORD: &str = env!("MQTT_PASSWORD");
 
 /// CA certificate for TLS verification (embedded at compile time)
 /// The certificate must be null-terminated for esp-idf
@@ -44,6 +48,8 @@ impl MqttPublisher {
 
         let mqtt_config = MqttClientConfiguration {
             client_id: Some(station_id),
+            username: Some(MQTT_USERNAME),
+            password: Some(MQTT_PASSWORD),
             // TLS configuration
             server_certificate: Some(server_cert),
             // Skip CN check since we use IP address in certificate

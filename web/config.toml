@@ -10,6 +10,9 @@ tls_key = "certs/server.key"
 host = "localhost"
 port = 8883
 topic = "sniffer/+/device"
+# Authentication (overridden by MQTT_USERNAME and MQTT_PASSWORD environment variables if set)
+username = "elev1"
+password = "password"
 # TLS configuration
 use_tls = true
 ca_cert = "certs/ca.crt"

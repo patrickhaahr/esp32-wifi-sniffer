@@ -35,6 +35,7 @@ rumqttc = ["dep:rumqttc"]
 log = "0.4"
 anyhow = "1.0.100"
 sha2 = { version = "0.10", default-features = false }
+dotenvy = "0.15.7"
 
 # ESP32-specific dependencies
 esp-idf-svc = { version = "0.51", optional = true }

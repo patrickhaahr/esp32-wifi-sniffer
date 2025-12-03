@@ -28,6 +28,12 @@ fn main() {
         if let Ok(broker) = std::env::var("MQTT_BROKER") {
             println!("cargo:rustc-env=MQTT_BROKER={}", broker);
         }
+        if let Ok(username) = std::env::var("MQTT_USERNAME") {
+            println!("cargo:rustc-env=MQTT_USERNAME={}", username);
+        }
+        if let Ok(password) = std::env::var("MQTT_PASSWORD") {
+            println!("cargo:rustc-env=MQTT_PASSWORD={}", password);
+        }
         if let Ok(station) = std::env::var("STATION_ID") {
             println!("cargo:rustc-env=STATION_ID={}", station);
         }

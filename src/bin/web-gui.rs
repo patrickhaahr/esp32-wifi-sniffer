@@ -52,6 +52,10 @@ struct MqttConfig {
     host: String,
     port: u16,
     topic: String,
+    /// Authentication username
+    username: String,
+    /// Authentication password
+    password: String,
     /// Enable TLS for MQTT connection
     use_tls: bool,
     /// Path to CA certificate for TLS verification
@@ -278,11 +282,19 @@ async fn mqtt_subscriber(state: AppState) -> Result<()> {
     let host = &state.config.mqtt.host;
     let port = state.config.mqtt.port;
 
+    // Load credentials from environment variables or use config fallback
+    let mqtt_username = std::env::var("MQTT_USERNAME").unwrap_or_else(|_| state.config.mqtt.username.clone());
+    let mqtt_password = std::env::var("MQTT_PASSWORD").unwrap_or_else(|_| state.config.mqtt.password.clone());
+
     log::info!("Connecting to MQTT broker at {}:{}", host, port);
+    log::info!("  Using username: {}", mqtt_username);
 
     // Configure MQTT client
     let mut mqtt_options = MqttOptions::new("web-gui", host.clone(), port);
     mqtt_options.set_keep_alive(std::time::Duration::from_secs(5));
+    
+    // Set authentication credentials
+    mqtt_options.set_credentials(mqtt_username, mqtt_password);
 
     // Configure TLS if enabled
     if state.config.mqtt.use_tls {

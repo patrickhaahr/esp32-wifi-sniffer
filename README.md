@@ -102,9 +102,11 @@ SERVER_IP=192.168.1.100  # Your server's IP address
 WIFI_SSID=your_network_name
 WIFI_PASS=your_network_password
 MQTT_BROKER=mqtts://192.168.1.100:8883  # Note: mqtts:// for TLS
+MQTT_USERNAME=elev1  # MQTT authentication username
+MQTT_PASSWORD=password  # MQTT authentication password
 STATION_ID=station1
 
-# Generate TLS certificates
+# Generate TLS certificates and MQTT password file
 ./genssl.sh
 ```
 
@@ -112,27 +114,28 @@ The script creates:
 - `certs/ca.crt` - Root CA certificate (for ESP32 clients)
 - `certs/server.crt` - Server certificate (shared by MQTT broker and web GUI)
 - `certs/server.key` - Server private key
+- `mosquitto/config/passwd` - MQTT password file with user credentials
 
 ### 4. Start MQTT Broker
 
-Start the included Mosquitto MQTT broker with TLS:
+Start the included Mosquitto MQTT broker with TLS and authentication:
 
 ```bash
 docker-compose up -d
 ```
 
-The broker will listen on port 8883 with TLS encryption.
+The broker will listen on port 8883 with TLS encryption and username/password authentication.
 
-### 5. Verify MQTT TLS Connection
+### 5. Verify MQTT TLS Connection with Authentication
 
-Test the MQTT broker with TLS:
+Test the MQTT broker with TLS and authentication:
 
 ```bash
-# View all MQTT messages with TLS
-mosquitto_sub -h 192.168.1.100 -p 8883 --cafile ./certs/ca.crt -t '#' -v
+# View all MQTT messages with TLS and authentication
+mosquitto_sub -h 192.168.1.100 -p 8883 --cafile ./certs/ca.crt -u elev1 -P password -t '#' -v
 ```
 
-Replace `192.168.1.100` with your `SERVER_IP`.
+Replace `192.168.1.100` with your `SERVER_IP`. The credentials (`elev1`/`password`) are configured in your `.env` file.
 
 ### 5. Configure Station Positions
 
