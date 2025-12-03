@@ -8,14 +8,16 @@ use axum::{
     routing::get,
     Router,
 };
-use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
+use axum_server::tls_rustls::RustlsConfig;
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS, Transport};
+use rustls::crypto::ring::default_provider;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
+    net::SocketAddr,
     path::Path,
     sync::Arc,
-    time::Duration,
 };
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
@@ -39,12 +41,21 @@ struct Config {
 struct ServerConfig {
     host: String,
     port: u16,
+    /// Path to TLS certificate file
+    tls_cert: String,
+    /// Path to TLS private key file
+    tls_key: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct MqttConfig {
-    broker: String,
+    host: String,
+    port: u16,
     topic: String,
+    /// Enable TLS for MQTT connection
+    use_tls: bool,
+    /// Path to CA certificate for TLS verification
+    ca_cert: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -128,6 +139,11 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Install the ring crypto provider for rustls
+    default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     // Initialize logging
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
@@ -173,11 +189,25 @@ async fn main() -> Result<()> {
         .layer(CorsLayer::permissive())
         .with_state(state.clone());
 
-    let addr = format!("{}:{}", state.config.server.host, state.config.server.port);
-    log::info!("Starting web server on http://{}", addr);
+    let addr: SocketAddr = format!("{}:{}", state.config.server.host, state.config.server.port)
+        .parse()
+        .expect("Invalid server address");
 
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app).await?;
+    // Load TLS configuration
+    let tls_config = RustlsConfig::from_pem_file(
+        &state.config.server.tls_cert,
+        &state.config.server.tls_key,
+    )
+    .await
+    .expect("Failed to load TLS certificates. Run ./genssl.sh first.");
+
+    log::info!("Starting HTTPS web server on https://{}", addr);
+    log::info!("  TLS cert: {}", state.config.server.tls_cert);
+    log::info!("  TLS key: {}", state.config.server.tls_key);
+
+    axum_server::bind_rustls(addr, tls_config)
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }
@@ -245,19 +275,26 @@ async fn websocket_connection(socket: WebSocket, state: AppState) {
 
 /// MQTT subscriber task
 async fn mqtt_subscriber(state: AppState) -> Result<()> {
-    // Parse MQTT broker URL - prefer environment variable over config file
-    let broker_url = std::env::var("MQTT_BROKER")
-        .unwrap_or_else(|_| state.config.mqtt.broker.clone());
-    let broker_url = broker_url.strip_prefix("mqtt://").unwrap_or(&broker_url);
-    let parts: Vec<&str> = broker_url.split(':').collect();
-    let host = parts[0];
-    let port = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(1883);
+    let host = &state.config.mqtt.host;
+    let port = state.config.mqtt.port;
 
     log::info!("Connecting to MQTT broker at {}:{}", host, port);
 
     // Configure MQTT client
-    let mut mqtt_options = MqttOptions::new("web-gui", host, port);
+    let mut mqtt_options = MqttOptions::new("web-gui", host.clone(), port);
     mqtt_options.set_keep_alive(std::time::Duration::from_secs(5));
+
+    // Configure TLS if enabled
+    if state.config.mqtt.use_tls {
+        let ca_cert = fs::read(&state.config.mqtt.ca_cert)
+            .expect("Failed to read CA certificate. Run ./genssl.sh first.");
+        
+        log::info!("  MQTT TLS enabled, CA cert: {}", state.config.mqtt.ca_cert);
+        
+        // Use TLS with CA certificate verification
+        let transport = Transport::tls(ca_cert, None, None);
+        mqtt_options.set_transport(transport);
+    }
 
     let (client, mut eventloop) = AsyncClient::new(mqtt_options, 10);
 

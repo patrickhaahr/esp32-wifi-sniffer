@@ -26,7 +26,7 @@ opt-level = "z"
 default = ["esp32"]
 
 esp32 = ["esp-idf-svc", "embedded-svc"]
-web-gui = ["dep:axum", "dep:tokio", "dep:tower-http", "dep:rumqttc", "dep:serde", "dep:serde_json", "dep:tokio-stream", "dep:toml", "dep:futures-util", "dep:rand", "dep:env_logger"]
+web-gui = ["dep:axum", "dep:axum-server", "dep:rustls", "dep:tokio", "dep:tower-http", "dep:rumqttc", "dep:serde", "dep:serde_json", "dep:tokio-stream", "dep:toml", "dep:futures-util", "dep:rand", "dep:env_logger"]
 
 experimental = ["esp-idf-svc/experimental"]
 rumqttc = ["dep:rumqttc"]
@@ -42,6 +42,8 @@ embedded-svc = { version = "0.28.1", optional = true }
 
 # Web GUI dependencies (native only)
 axum = { version = "0.7", optional = true, features = ["ws"] }
+axum-server = { version = "0.7", optional = true, default-features = false, features = ["tls-rustls-no-provider"] }
+rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std", "tls12"] }
 tokio = { version = "1.42", features = ["rt-multi-thread", "macros", "sync", "time", "net"], optional = true }
 tower-http = { version = "0.5", features = ["fs", "cors"], optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
@@ -51,7 +53,7 @@ toml = { version = "0.8", optional = true }
 futures-util = { version = "0.3", optional = true }
 rand = { version = "0.8", optional = true }
 env_logger = { version = "0.11", optional = true }
-rumqttc = { version = "0.24", optional = true, default-features = false, features = ["use-rustls"] }
+rumqttc = { version = "0.25", optional = true, default-features = false, features = ["use-rustls"] }
 
 # --- Optional Embassy Integration ---
 # esp-idf-svc = { version = "0.51", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }

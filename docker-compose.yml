@@ -3,8 +3,8 @@ services:
     image: eclipse-mosquitto
     container_name: mosquitto
     ports:
-      - "1883:1883"
-      - "8883:8883"
+      - "8883:8883"  # MQTT over TLS only
     volumes:
       - ./mosquitto/config:/mosquitto/config
+      - ./certs:/mosquitto/config/certs:ro  # TLS certificates (read-only)
     restart: unless-stopped

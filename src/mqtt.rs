@@ -1,12 +1,17 @@
 use anyhow::Result;
 use esp_idf_svc::mqtt::client::{EspMqttClient, EventPayload, MqttClientConfiguration, QoS};
-use log::{error, info, warn};
-use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
+use esp_idf_svc::tls::X509;
+use log::{error, info};
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::time::Duration;
 
-/// MQTT broker configuration
+/// MQTT broker configuration (mqtts://host:8883 for TLS)
 const MQTT_BROKER: &str = env!("MQTT_BROKER");
 const MQTT_TOPIC_PREFIX: &str = "sniffer";
+
+/// CA certificate for TLS verification (embedded at compile time)
+/// The certificate must be null-terminated for esp-idf
+const CA_CERT: &[u8] = concat!(include_str!("../certs/ca.crt"), "\0").as_bytes();
 
 /// Bounded channel capacity - prevents memory exhaustion
 const CHANNEL_CAPACITY: usize = 32;
@@ -29,22 +34,31 @@ pub struct MqttPublisher {
 }
 
 impl MqttPublisher {
-    /// Create new MQTT publisher
+    /// Create new MQTT publisher with TLS
     pub fn new(station_id: &str, rx: Receiver<DeviceEvent>) -> Result<Self> {
         info!("Connecting to MQTT broker: {}", MQTT_BROKER);
+        info!("TLS enabled with embedded CA certificate");
+
+        // Parse CA certificate for TLS verification
+        let server_cert = X509::pem_until_nul(CA_CERT);
 
         let mqtt_config = MqttClientConfiguration {
             client_id: Some(station_id),
+            // TLS configuration
+            server_certificate: Some(server_cert),
+            // Skip CN check since we use IP address in certificate
+            // The CA signature is still verified
+            skip_cert_common_name_check: true,
             ..Default::default()
         };
 
         let client = EspMqttClient::new_cb(
-            MQTT_BROKER,
+            MQTT_BROKER, // mqtts:// URL triggers TLS
             &mqtt_config,
             move |event| {
                 match event.payload() {
                     EventPayload::Connected(_) => {
-                        info!("MQTT connected");
+                        info!("MQTT connected (TLS)");
                     }
                     EventPayload::Disconnected => {
                         info!("MQTT disconnected");
@@ -57,7 +71,7 @@ impl MqttPublisher {
             },
         )?;
 
-        info!("MQTT client created for station: {}", station_id);
+        info!("MQTT client created for station: {} (TLS enabled)", station_id);
 
         Ok(Self {
             client,

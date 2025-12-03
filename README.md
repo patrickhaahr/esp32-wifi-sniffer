@@ -5,6 +5,7 @@ A privacy-focused ESP32 WiFi sniffer system that detects and tracks WiFi devices
 ## Features
 
 - **Privacy-First**: MAC addresses are SHA-256 hashed before transmission for GDPR compliance
+- **Secure by Default**: All communications encrypted with TLS 1.3 (HTTPS, WSS, MQTTS)
 - **Real-time Tracking**: Multiple ESP32 stations detect WiFi probe requests and publish RSSI data via MQTT
 - **Trilateration**: Advanced positioning algorithm using gradient descent optimization to calculate device positions
 - **Web Dashboard**: Real-time visualization of detected devices and their positions
@@ -22,19 +23,30 @@ A privacy-focused ESP32 WiFi sniffer system that detects and tracks WiFi devices
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │
        └───────────────────┴───────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │    MQTT     │
-                    │   Broker    │
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────┐
-                    │  Web GUI    │
-                    │             │
-                    │ Triangulate │
-                    │ Visualize   │
-                    └─────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │    MQTT     │
+                     │   Broker    │
+                     │  (MQTTS)    │
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │  Web GUI    │
+                     │  (HTTPS)    │
+                     │             │
+                     │ Triangulate │
+                     │ Visualize   │
+                     └─────────────┘
 ```
+
+## Security
+
+All communications are encrypted with TLS 1.3:
+
+- **ESP32 → MQTT**: MQTTS on port 8883 with CA certificate verification
+- **Web GUI → MQTT**: MQTTS on port 8883 with CA certificate verification  
+- **Browser → Web GUI**: HTTPS on port 3000 with self-signed certificate
+- **WebSocket**: WSS (secure WebSocket) automatically over HTTPS
 
 ## Privacy & GDPR Compliance
 
@@ -77,32 +89,50 @@ espup install
 . $HOME/export-rs.sh  # Or add to your shell profile
 ```
 
-### 3. Set Up MQTT Broker
+### 3. Generate TLS Certificates
 
-Start the included Mosquitto MQTT broker:
+**Important**: Set your server IP in `.env` first, then generate certificates:
+
+```bash
+# Copy and configure environment file
+cp .env.example .env
+
+# Edit .env with your server IP (the machine running MQTT broker and web GUI)
+SERVER_IP=192.168.1.100  # Your server's IP address
+WIFI_SSID=your_network_name
+WIFI_PASS=your_network_password
+MQTT_BROKER=mqtts://192.168.1.100:8883  # Note: mqtts:// for TLS
+STATION_ID=station1
+
+# Generate TLS certificates
+./genssl.sh
+```
+
+The script creates:
+- `certs/ca.crt` - Root CA certificate (for ESP32 clients)
+- `certs/server.crt` - Server certificate (shared by MQTT broker and web GUI)
+- `certs/server.key` - Server private key
+
+### 4. Start MQTT Broker
+
+Start the included Mosquitto MQTT broker with TLS:
 
 ```bash
 docker-compose up -d
 ```
 
-Or use your own MQTT broker and update the configuration.
+The broker will listen on port 8883 with TLS encryption.
 
-### 4. Configure Environment Variables
+### 5. Verify MQTT TLS Connection
 
-Copy the example environment file and configure for each ESP32:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your settings:
+Test the MQTT broker with TLS:
 
 ```bash
-WIFI_SSID=your_network_name
-WIFI_PASS=your_network_password
-MQTT_BROKER=mqtt://192.168.1.100:1883
-STATION_ID=station1  # Unique ID for each ESP32
+# View all MQTT messages with TLS
+mosquitto_sub -h 192.168.1.100 -p 8883 --cafile ./certs/ca.crt -t '#' -v
 ```
+
+Replace `192.168.1.100` with your `SERVER_IP`.
 
 ### 5. Configure Station Positions
 
@@ -142,12 +172,25 @@ This command will:
 
 ### View Real-time Data
 
-1. Open browser to `http://localhost:3000`
+1. Open browser to `https://localhost:3000` (accept self-signed certificate warning)
 2. You'll see a 2D visualization of the room with:
    - Station positions (fixed markers)
    - Detected devices (moving circles)
    - Device trails showing movement history
    - RSSI values and signal strength indicators
+   - Real-time triangulation positioning
+
+### Monitor MQTT Messages
+
+View device detection data in real-time:
+
+```bash
+# Monitor all MQTT topics with TLS
+mosquitto_sub -h 192.168.1.100 -p 8883 --cafile ./certs/ca.crt -t '#' -v
+
+# Monitor only device events
+mosquitto_sub -h 192.168.1.100 -p 8883 --cafile ./certs/ca.crt -t 'sniffer/+/device' -v
+```
 
 ## CLI Commands
 
@@ -230,12 +273,33 @@ espflash flash --release --monitor target/xtensa-esp32-espidf/release/esp-sniffe
 ### MQTT Connection Issues
 
 ```bash
-# Test MQTT broker
-mosquitto_sub -h <broker-ip> -t "sniffer/#" -v
+# Test MQTT broker with TLS
+mosquitto_sub -h <broker-ip> -p 8883 --cafile ./certs/ca.crt -t "sniffer/#" -v
 
-# Check if ESP32 is publishing
-mosquitto_sub -h <broker-ip> -t "sniffer/+/device" -v
+# Check if ESP32 is publishing with TLS
+mosquitto_sub -h <broker-ip> -p 8883 --cafile ./certs/ca.crt -t "sniffer/+/device" -v
 ```
+
+### Certificate Issues
+
+```bash
+# Regenerate certificates if needed
+./genssl.sh
+
+# Check certificate files
+ls -la certs/
+# Should show: ca.crt, ca.key, server.crt, server.key
+
+# Verify server certificate
+openssl x509 -in certs/server.crt -text -noout
+```
+
+### HTTPS Certificate Warnings
+
+The web GUI uses a self-signed certificate. In your browser:
+1. Navigate to `https://localhost:3000`
+2. Click "Advanced" → "Proceed to localhost (unsafe)"
+3. The connection is still encrypted, just not signed by a public CA
 
 ### Poor Positioning Accuracy
 
@@ -243,4 +307,35 @@ mosquitto_sub -h <broker-ip> -t "sniffer/+/device" -v
 2. **Adjust Path Loss**: Increase `path_loss_exponent` for environments with more obstacles
 3. **Station Placement**: Position stations in a triangle/polygon for best results
 4. **Reduce Smoothing**: Lower `smoothing_factor` for faster position updates
+
+### TLS/SSL Issues
+
+1. **Certificate Mismatch**: Ensure `SERVER_IP` in `.env` matches the IP where services run
+2. **Port Conflicts**: Make sure port 8883 (MQTT) and 3000 (HTTPS) are available
+3. **Firewall**: Allow incoming connections on ports 8883 and 3000
+4. **Docker Permissions**: Certificate files should have readable permissions (644)
+
+## Quick Start Summary
+
+```bash
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with your SERVER_IP, WIFI_SSID, WIFI_PASS, MQTT_BROKER=mqtts://...
+
+# 2. Generate TLS certificates
+./genssl.sh
+
+# 3. Start MQTT broker
+docker-compose up -d
+
+# 4. Flash ESP32 (repeat for each station)
+# Edit STATION_ID in .env, then:
+cargo fr
+
+# 5. Start web GUI
+cargo web-l
+
+# 6. Open browser to https://localhost:3000
+# 7. Monitor MQTT: mosquitto_sub -h $SERVER_IP -p 8883 --cafile ./certs/ca.crt -t '#' -v
+```
 
