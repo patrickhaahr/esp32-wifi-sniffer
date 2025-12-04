@@ -34,7 +34,6 @@ struct Config {
     mqtt: MqttConfig,
     room: RoomConfig,
     stations: Vec<StationConfig>,
-    display: DisplayConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,7 +72,6 @@ struct StationConfig {
     id: String,
     x: f32,
     y: f32,
-    label: String,
     /// Reference RSSI at 1 meter (optional, defaults to -45.0)
     rssi_at_1m: Option<f32>,
     /// Path loss exponent (optional, defaults to 3.0)
@@ -99,18 +97,13 @@ impl StationLike for StationConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct DisplayConfig {
-    device_timeout: u64,
-    fade_after: u64,
-}
+
 
 /// MQTT device event from ESP32
 #[derive(Debug, Deserialize)]
 struct MqttDeviceEvent {
     mac_hash: String,
     rssi: i8,
-    channel: u8,
     timestamp: u64,
     station: String,
 }

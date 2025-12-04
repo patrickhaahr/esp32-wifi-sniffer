@@ -2,12 +2,10 @@ use esp_idf_svc::sys::{
     esp_wifi_set_promiscuous,
     esp_wifi_set_promiscuous_rx_cb,
     esp_wifi_set_promiscuous_filter,
-    esp_wifi_set_channel,
     esp_timer_get_time,
     wifi_promiscuous_pkt_t,
     wifi_promiscuous_pkt_type_t,
     wifi_promiscuous_filter_t,
-    wifi_second_chan_t_WIFI_SECOND_CHAN_NONE,
     WIFI_PROMIS_FILTER_MASK_MGMT,
     WIFI_PROMIS_FILTER_MASK_DATA,
     ESP_OK,
@@ -54,10 +52,6 @@ pub struct Ieee80211MacHeader {
 pub struct MacAddress(pub [u8; 6]);
 
 impl MacAddress {
-    pub fn from_bytes(bytes: &[u8; 6]) -> Self {
-        MacAddress(*bytes)
-    }
-
     /// Check if this is a broadcast address (FF:FF:FF:FF:FF:FF)
     pub fn is_broadcast(&self) -> bool {
         self.0 == [0xFF; 6]
@@ -89,17 +83,7 @@ impl core::fmt::Display for MacAddress {
     }
 }
 
-/// Sniffed packet information
-#[derive(Debug, Clone)]
-pub struct SniffedPacket {
-    pub source_mac: MacAddress,
-    pub dest_mac: MacAddress,
-    pub bssid: MacAddress,
-    pub rssi: i8,
-    pub channel: u8,
-    pub packet_type: u32,
-    pub length: u32,
-}
+
 
 /// Promiscuous mode RX callback
 /// WARNING: Called directly in WiFi driver task - keep it minimal!
@@ -218,23 +202,7 @@ pub fn start_sniffer() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Stop the sniffer
-pub fn stop_sniffer() -> anyhow::Result<()> {
-    unsafe {
-        let ret = esp_wifi_set_promiscuous(false);
-        if ret != ESP_OK {
-            anyhow::bail!("Failed to disable promiscuous mode: {}", ret);
-        }
 
-        let ret = esp_wifi_set_promiscuous_rx_cb(None);
-        if ret != ESP_OK {
-            anyhow::bail!("Failed to clear promiscuous callback: {}", ret);
-        }
-    }
-
-    log::info!("Promiscuous mode disabled");
-    Ok(())
-}
 
 /// Get current packet count
 pub fn get_packet_count() -> u32 {
@@ -251,7 +219,4 @@ pub fn get_sent_count() -> u32 {
     SENT_COUNT.load(Ordering::Relaxed)
 }
 
-/// Reset packet counter
-pub fn reset_packet_count() {
-    PACKET_COUNT.store(0, Ordering::SeqCst);
-}
+

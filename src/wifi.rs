@@ -12,28 +12,7 @@ use log::info;
 const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASS");
 
-/// Initialize WiFi for sniffer mode (no connection, just start the driver)
-pub fn initialize_wifi_sniffer(
-    modem: Modem,
-    sys_loop: EspSystemEventLoop,
-    nvs: EspDefaultNvsPartition,
-) -> Result<BlockingWifi<EspWifi<'static>>> {
-    info!("Initializing WiFi for sniffer mode");
 
-    let mut wifi = BlockingWifi::wrap(
-        EspWifi::new(modem, sys_loop.clone(), Some(nvs))?,
-        sys_loop,
-    )?;
-
-    // Use STA mode but don't connect - just need WiFi driver running
-    let wifi_configuration = Configuration::Client(ClientConfiguration::default());
-
-    wifi.set_configuration(&wifi_configuration)?;
-    wifi.start()?;
-
-    info!("WiFi driver started (sniffer mode - not connected)");
-    Ok(wifi)
-}
 
 /// Initialize WiFi and connect to the configured network
 pub fn initialize_wifi_connected(

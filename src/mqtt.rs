@@ -148,24 +148,7 @@ impl MqttPublisher {
         Ok(())
     }
 
-    /// Publish station heartbeat
-    pub fn publish_heartbeat(&mut self, packet_count: u32) -> Result<()> {
-        let topic = format!("{}/{}/heartbeat", MQTT_TOPIC_PREFIX, self.station_id);
 
-        let payload = format!(
-            r#"{{"station":"{}","packets":{}}}"#,
-            self.station_id, packet_count
-        );
-
-        self.client.enqueue(
-            &topic,
-            QoS::AtMostOnce,
-            false,
-            payload.as_bytes(),
-        )?;
-
-        Ok(())
-    }
 }
 
 /// Create bounded event channel for passing device detections
