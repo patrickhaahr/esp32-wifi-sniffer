@@ -1,4 +1,4 @@
-# ESP WiFi Sniffer
+# ESP32 WiFi Sniffer
 
 A privacy-focused ESP32 WiFi sniffer system that detects and tracks WiFi devices using RSSI-based trilateration. Built with Rust for the ESP32, with a web-based real-time visualization dashboard.
 
@@ -88,8 +88,8 @@ Follow the [esp-idf-template installation guide](https://github.com/esp-rs/esp-i
 ### 2. Clone the Repository
     
 ```bash
-git clone https://github.com/patrickhaahr/esp-sniffer-rs.git
-cd esp-sniffer-rs
+git clone https://github.com/patrickhaahr/esp32-wifi-sniffer.git
+cd esp32-wifi-sniffer
 ```
 
 ### 3. Generate TLS Certificates
@@ -173,7 +173,7 @@ This command will:
 2. Flash to ESP32
 3. Open serial monitor
 
-**Note**: `cargo fr` is a custom alias defined in `.cargo/config.toml` that expands to `cargo run --release --bin esp-sniffer-rs`.
+**Note**: `cargo fr` is a custom alias defined in `.cargo/config.toml` that expands to `cargo run --release --bin esp32-wifi-sniffer`.
 
 
 ### View Real-time Data

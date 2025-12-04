@@ -1,5 +1,5 @@
 [package]
-name = "esp-sniffer-rs"
+name = "esp32-wifi-sniffer"
 version = "0.1.0"
 authors = ["patrickhaahr <git@haahr.me>"]
 edition = "2021"
@@ -7,7 +7,7 @@ resolver = "2"
 rust-version = "1.77"
 
 [[bin]]
-name = "esp-sniffer-rs"
+name = "esp32-wifi-sniffer"
 harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
 
 [[bin]]

@@ -23,7 +23,7 @@ use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 
 // Import triangulation module from library
-use esp_sniffer_rs::triangulate::{
+use esp32_wifi_sniffer::triangulate::{
     CalibrationParams, Position, RssiReading as TriangulateRssiReading, StationLike, PositionTracker,
 };
 
